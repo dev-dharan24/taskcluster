@@ -65,7 +65,7 @@ function Set-OutsideBaseline {
 
 $suffix = [guid]::NewGuid().ToString("N").Substring(0, 8)
 $taskUser = "tcicacls$suffix"
-$taskPassword = "Aa1!" + [guid]::NewGuid().ToString("N") + "zZ9!"
+$taskPassword = "Aa1!" + $suffix + "Z9"
 $securePassword = ConvertTo-SecureString $taskPassword -AsPlainText -Force
 $credentialName = "$env:COMPUTERNAME\$taskUser"
 $credential = [System.Management.Automation.PSCredential]::new($credentialName, $securePassword)
