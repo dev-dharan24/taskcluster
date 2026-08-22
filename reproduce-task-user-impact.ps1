@@ -75,6 +75,7 @@ $cacheRoot = Join-Path $testRoot "cache"
 $outsideRoot = Join-Path $testRoot "outside"
 $outsideFile = Join-Path $outsideRoot "protected-sentinel.txt"
 $junction = Join-Path $cacheRoot "outside-junction"
+$junctionFile = Join-Path $junction "protected-sentinel.txt"
 $createJunctionScript = Join-Path $cacheRoot "create-junction.cmd"
 $readBeforeScript = Join-Path $cacheRoot "read-before.cmd"
 $readAfterGrantScript = Join-Path $cacheRoot "read-after-grant.cmd"
@@ -82,6 +83,7 @@ $takeAccessScript = Join-Path $cacheRoot "take-access-as-owner.cmd"
 $beforeMarker = Join-Path $cacheRoot "before.txt"
 $afterGrantMarker = Join-Path $cacheRoot "after-grant.txt"
 $afterOwnerMarker = Join-Path $cacheRoot "after-owner.txt"
+$afterOwnerLog = Join-Path $cacheRoot "after-owner.log"
 $resultPath = Join-Path $env:GITHUB_WORKSPACE "task-user-impact-result.json"
 $userCreated = $false
 
@@ -116,7 +118,7 @@ exit /b %errorlevel%
 
     @"
 @echo off
-type "$outsideFile" > "$beforeMarker"
+type "$junctionFile" > "$beforeMarker"
 exit /b %errorlevel%
 "@ | Set-Content -LiteralPath $readBeforeScript -Encoding Ascii
     $beforeAccessExit = Invoke-AsTaskUser -ScriptPath $readBeforeScript -Credential $credential -WorkingDirectory $cacheRoot
@@ -127,7 +129,7 @@ exit /b %errorlevel%
     Invoke-Icacls -IcaclsArgs @($cacheRoot, "/grant:r", "${taskOwnerArg}:(OI)(CI)F")
     @"
 @echo off
-type "$outsideFile" > "$afterGrantMarker"
+type "$junctionFile" > "$afterGrantMarker"
 exit /b %errorlevel%
 "@ | Set-Content -LiteralPath $readAfterGrantScript -Encoding Ascii
     $afterGrantAccessExit = Invoke-AsTaskUser -ScriptPath $readAfterGrantScript -Credential $credential -WorkingDirectory $cacheRoot
@@ -142,14 +144,19 @@ exit /b %errorlevel%
 
     @"
 @echo off
-icacls "$outsideFile" /grant:r "${taskOwnerArg}:F"
+icacls "$junctionFile" /grant:r "${taskOwnerArg}:F" > "$afterOwnerLog" 2>&1
 if errorlevel 1 exit /b %errorlevel%
-type "$outsideFile" > "$afterOwnerMarker"
+type "$junctionFile" > "$afterOwnerMarker"
 exit /b %errorlevel%
 "@ | Set-Content -LiteralPath $takeAccessScript -Encoding Ascii
     $afterOwnerAccessExit = Invoke-AsTaskUser -ScriptPath $takeAccessScript -Credential $credential -WorkingDirectory $cacheRoot
     $sentinel = if (Test-Path -LiteralPath $afterOwnerMarker) {
         (Get-Content -LiteralPath $afterOwnerMarker -Raw).Trim()
+    } else {
+        ""
+    }
+    $afterOwnerCommandLog = if (Test-Path -LiteralPath $afterOwnerLog) {
+        (Get-Content -LiteralPath $afterOwnerLog -Raw).Trim()
     } else {
         ""
     }
@@ -166,6 +173,8 @@ exit /b %errorlevel%
         grantAloneStayedContained = $grantAloneStayedContained
         outsideFileOwnerAfterRecursive = $outsideFileOwnerAfterRecursive
         taskBecameOutsideFileOwner = $taskBecameOutsideFileOwner
+        afterOwnerAccessExit = $afterOwnerAccessExit
+        afterOwnerCommandLog = $afterOwnerCommandLog
         taskUserChangedDaclAndRead = $taskUserChangedDaclAndRead
         sentinelRead = $sentinel
     }
