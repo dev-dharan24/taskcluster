@@ -1,0 +1,73 @@
+name: Reproduce Taskcluster icacls reparse handling
+
+on:
+  push:
+    branches:
+      - codex/repro-icacls-reparse-726ac7a
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    name: ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - windows-2022
+          - windows-2025
+
+    steps:
+      - name: Check out validation harness
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Check out affected Taskcluster commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: dev-dharan24/taskcluster
+          ref: 726ac7a1ba6c550356a5f0498608a559c758970e
+          path: source-726ac7a
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Confirm the affected source shape
+        shell: pwsh
+        run: |
+          $sourcePath = Join-Path $env:GITHUB_WORKSPACE "source-726ac7a/workers/generic-worker/multiuser_windows.go"
+          $text = Get-Content -LiteralPath $sourcePath -Raw
+          $start = $text.IndexOf("func makeFileOrDirReadWritableForUser")
+          $end = $text.IndexOf("func RenameCrossDevice", $start)
+          if ($start -lt 0 -or $end -le $start) {
+            throw "Could not isolate makeFileOrDirReadWritableForUser"
+          }
+          $snippet = $text.Substring($start, $end - $start)
+          if ($snippet -notmatch 'setOwnerArgs := \[\]string\{dir, "/setowner", user\.Name\}') {
+            throw "Expected icacls /setowner construction is absent"
+          }
+          if ($snippet -notmatch 'append\(setOwnerArgs, "/T"\)') {
+            throw "Expected recursive /T argument is absent"
+          }
+          if ($snippet -match '"/L"') {
+            throw "The checked-out function already contains /L and is not the affected source"
+          }
+          Write-Host "Confirmed commit 726ac7a: recursive /setowner /T is present and /L is absent."
+
+      - name: Exercise a task-created junction using the exact icacls shape
+        shell: pwsh
+        run: ./reproduce-icacls-reparse.ps1
+
+      - name: Print structured result
+        if: always()
+        shell: pwsh
+        run: |
+          $result = Join-Path $env:GITHUB_WORKSPACE "icacls-reparse-result.json"
+          if (Test-Path -LiteralPath $result) {
+            Get-Content -LiteralPath $result
+          } else {
+            Write-Host "No result JSON was produced."
+          }
