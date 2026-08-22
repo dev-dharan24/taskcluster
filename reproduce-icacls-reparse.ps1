@@ -83,6 +83,7 @@ try {
     $slashLStayedContained =
         $afterNoFollowDirectoryOwner -eq $administratorsSid -and
         $afterNoFollowFileOwner -eq $administratorsSid
+    $slashLCrossedBoundary = -not $slashLStayedContained
 
     $result = [ordered]@{
         osCaption = (Get-CimInstance Win32_OperatingSystem).Caption
@@ -103,6 +104,7 @@ try {
         nonRecursiveStayedContained = $nonRecursiveStayedContained
         recursiveCrossedBoundary = $recursiveCrossedBoundary
         slashLStayedContained = $slashLStayedContained
+        slashLCrossedBoundary = $slashLCrossedBoundary
     }
 
     $result | ConvertTo-Json | Set-Content -LiteralPath $resultPath
@@ -115,7 +117,7 @@ try {
 - Runner: $($result.osCaption) ($($result.osVersion))
 - Non-recursive control stayed contained: $nonRecursiveStayedContained
 - Recursive /T crossed the junction boundary: $recursiveCrossedBoundary
-- /L /T stayed contained: $slashLStayedContained
+- /L /T crossed the junction boundary: $slashLCrossedBoundary
 - Outside directory owner after /T: $afterRecursiveDirectoryOwner
 - Outside file owner after /T: $afterRecursiveFileOwner
 "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
@@ -127,8 +129,8 @@ try {
     if (-not $recursiveCrossedBoundary) {
         throw "NOT REPRODUCED: icacls /setowner /T did not change the junction target ownership"
     }
-    if (-not $slashLStayedContained) {
-        throw "The proposed /L control did not keep ownership changes inside the cache"
+    if ($slashLCrossedBoundary) {
+        Write-Warning "The proposed /L addition is insufficient: /L /T still changed the junction target"
     }
 
     Write-Host "REPRODUCED: recursive icacls ownership transfer crossed the cache junction boundary."

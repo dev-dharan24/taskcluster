@@ -8,7 +8,12 @@ The PowerShell script creates only two directories beneath `RUNNER_TEMP`: a
 cache-shaped directory and an outside sentinel directory. It places an NTFS
 junction in the cache, changes owners with the exact affected
 `icacls <cache> /setowner <user> /T` argument shape, records both outside
-owners, runs `/L /T` as a negative control, and removes the temporary junction
-before deleting the directories.
+owners, compares `/L /T`, and removes the temporary junction before deleting
+the directories.
+
+The `/L /T` result is recorded rather than assumed safe. On the first run,
+both Windows versions showed that `/L` changes how the junction itself is
+handled but does not stop `/T` from enumerating and re-owning files through the
+junction.
 
 No Taskcluster service, credential, worker pool, or production path is used.
