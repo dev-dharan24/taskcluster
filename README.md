@@ -16,4 +16,10 @@ both Windows versions showed that `/L` changes how the junction itself is
 handled but does not stop `/T` from enumerating and re-owning files through the
 junction.
 
+A second harness creates a temporary standard local user, has that user create
+the junction, denies it access to the outside sentinel, runs the affected
+ownership operation as the runner administrator, and checks whether the new
+owner can grant itself access and read the sentinel. The user and all temporary
+paths are removed in a `finally` block.
+
 No Taskcluster service, credential, worker pool, or production path is used.

@@ -61,6 +61,10 @@ jobs:
         shell: pwsh
         run: ./reproduce-icacls-reparse.ps1
 
+      - name: Confirm standard-user creation and ownership-to-DACL escalation
+        shell: pwsh
+        run: ./reproduce-task-user-impact.ps1
+
       - name: Print structured result
         if: always()
         shell: pwsh
@@ -70,4 +74,10 @@ jobs:
             Get-Content -LiteralPath $result
           } else {
             Write-Host "No result JSON was produced."
+          }
+          $impactResult = Join-Path $env:GITHUB_WORKSPACE "task-user-impact-result.json"
+          if (Test-Path -LiteralPath $impactResult) {
+            Get-Content -LiteralPath $impactResult
+          } else {
+            Write-Host "No task-user impact result JSON was produced."
           }
