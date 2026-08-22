@@ -51,13 +51,15 @@ function Set-OutsideBaseline {
         [Parameter(Mandatory = $true)]
         [string] $OutsideRoot,
         [Parameter(Mandatory = $true)]
-        [string] $OutsideFile
+        [string] $OutsideFile,
+        [Parameter(Mandatory = $true)]
+        [string] $TaskOwnerArg
     )
 
     $administratorsArg = "*S-1-5-32-544"
     $systemArg = "*S-1-5-18"
     Invoke-Icacls -IcaclsArgs @($OutsideRoot, "/inheritance:r")
-    Invoke-Icacls -IcaclsArgs @($OutsideRoot, "/grant:r", "${administratorsArg}:(OI)(CI)F", "${systemArg}:(OI)(CI)F")
+    Invoke-Icacls -IcaclsArgs @($OutsideRoot, "/grant:r", "${administratorsArg}:(OI)(CI)F", "${systemArg}:(OI)(CI)F", "${TaskOwnerArg}:(RX)")
     Invoke-Icacls -IcaclsArgs @($OutsideFile, "/inheritance:r")
     Invoke-Icacls -IcaclsArgs @($OutsideFile, "/grant:r", "${administratorsArg}:F", "${systemArg}:F")
     Invoke-Icacls -IcaclsArgs @($OutsideRoot, "/setowner", $administratorsArg, "/T")
@@ -114,7 +116,7 @@ exit /b %errorlevel%
         throw "Temporary standard user could not create the cache junction (exit $junctionCreateExit)"
     }
 
-    Set-OutsideBaseline -OutsideRoot $outsideRoot -OutsideFile $outsideFile
+    Set-OutsideBaseline -OutsideRoot $outsideRoot -OutsideFile $outsideFile -TaskOwnerArg $taskOwnerArg
 
     @"
 @echo off
@@ -137,7 +139,7 @@ exit /b %errorlevel%
 
     # Restore the protected baseline and execute the ownership call introduced
     # by commit 726ac7a.
-    Set-OutsideBaseline -OutsideRoot $outsideRoot -OutsideFile $outsideFile
+    Set-OutsideBaseline -OutsideRoot $outsideRoot -OutsideFile $outsideFile -TaskOwnerArg $taskOwnerArg
     Invoke-Icacls -IcaclsArgs @($cacheRoot, "/setowner", $taskOwnerArg, "/T")
     $outsideFileOwnerAfterRecursive = Get-OwnerSid -LiteralPath $outsideFile
     $taskBecameOutsideFileOwner = $outsideFileOwnerAfterRecursive -eq $taskSid

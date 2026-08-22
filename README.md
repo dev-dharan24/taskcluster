@@ -22,4 +22,10 @@ ownership operation as the runner administrator, and checks whether the new
 owner can grant itself access and read the sentinel. The user and all temporary
 paths are removed in a `finally` block.
 
+The outside directory grants the standard user only `RX` traversal while the
+sentinel file grants access solely to Administrators and SYSTEM. This models a
+traversable host directory containing a restricted credential or configuration
+file: the user cannot read it before the worker operation, but ownership of the
+file should let the user rewrite its DACL.
+
 No Taskcluster service, credential, worker pool, or production path is used.
