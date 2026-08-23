@@ -1,7 +1,7 @@
 package taskcluster_test
 
 import (
-	tc "github.com/lightsofapollo/taskcluster-proxy"
+	tc "github.com/lightsofapollo/taskcluster-proxy/taskcluster"
 	"testing"
 	"net/url"
 )
